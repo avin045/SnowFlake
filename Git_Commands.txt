@@ -1,0 +1,28 @@
+# Open Git Bash in the folder where you want to create the repository.
+
+# Initialize the Git repository
+git init
+
+# Check if the repository was created successfully
+git status
+
+# Add the remote repository
+git remote add origin https://github.com/username/repository.git
+
+# Retrieve the contents of the remote repository
+git pull origin main
+
+# Stage the files you want to include in the repository
+git add file1.txt file2.txt
+
+# Finalize the changes and add a message to describe the changes you made
+git commit -m "Initial commit with files file1.txt and file2.txt"
+
+# Push the changes to the remote repository
+git push origin main
+
+# Switch to the "feature-branch" branch
+git checkout feature-branch
+
+# Create and switch to the "feature-branch" branch
+git checkout -b feature-branch
