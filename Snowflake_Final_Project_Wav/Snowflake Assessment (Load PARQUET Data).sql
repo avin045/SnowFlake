@@ -99,7 +99,7 @@ execute task Task1;
 select system$stream_has_data('AVINSTREAM');
 
 --Turning on a task is done with a RESUME command
-alter task PRACTICEDB.AVINASH_SCHEMA.Task1 resume;
+alter task PRACTICEDB.AVINASH_SCHEMA.Task1 resume; -- alter task Task1 resume;
 alter task PRACTICEDB.AVINASH_SCHEMA.Task1 suspend;
 
 describe task PRACTICEDB.AVINASH_SCHEMA.Task1;
