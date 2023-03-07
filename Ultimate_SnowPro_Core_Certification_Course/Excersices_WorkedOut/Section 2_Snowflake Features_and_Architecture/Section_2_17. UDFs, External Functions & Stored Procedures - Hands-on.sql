@@ -12,7 +12,7 @@ USE WAREHOUSE COMPUTE_WH;
 USE DATABASE DEMO_DB;
 USE SCHEMA DEMO_SCHEMA;
 
--- User Defined Functions
+-- 1. User Defined Functions
 -- SQL UDF to return the name of the day of the week on a date in the future
 create or replace function DAY_NAME_ON(num_of_days int)
 returns string
@@ -119,7 +119,7 @@ SELECT JS_DAY_NAME_ON(100,FALSE);
 SELECT JS_DAY_NAME_ON(100);
 
 ---- START TO WORK 10 FEB----
--- External Function 
+-- 2. External Function 
     
 CREATE OR REPLACE API INTEGRATION demonstration_external_api_integration_01
     API_PROVIDER=aws_api_gateway
@@ -137,7 +137,7 @@ CREATE OR REPLACE EXTERNAL FUNCTION local_echo(string_col varchar)
 -- Stored procedure JavaScript
 
 create schema demo_schema2;
--- Create demo tables and insert data to test procedure
+-- 3. Create demo tables and insert data to test procedure
 CREATE TABLE DEMO_TABLE 
 (
 NAME STRING, 
