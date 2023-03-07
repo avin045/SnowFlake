@@ -1,189 +1,96 @@
-/*----------------D5_2 Hands-on----------------
-1) User Defined Functions (UDFs)
-2) External Functions 
-3) Stored Procedures
-----------------------------------------------*/
+-- EXTERNAL TABLE (using Snowflake Learning Platform)
+ create or replace stage demo_db.demo_schema.s3_bucket_files
+ url = 's3://uni-lab-files/dabw/';
+ 
+ -- MODEL DATA AS STAGE
+ create or replace stage demo_db.demo_schema.s3_bucket_Modelfile
+ url = 's3://uni-lab-files/dabw/Color_Names.csv';
+ 
+ -- create file format
+ create or replace file format csv_fmt
+ TYPE = 'CSV';
+ 
+list @s3_bucket_files;
 
--- Set context 
-USE ROLE SYSADMIN;
-USE WAREHOUSE COMPUTE_WH;
+select $1,$2 from @s3_bucket_Modelfile;
 
---Set context
-USE DATABASE DEMO_DB;
-USE SCHEMA DEMO_SCHEMA;
+-- ---------------------------------------------------------------
+-- WORKING
 
--- 1. User Defined Functions
--- SQL UDF to return the name of the day of the week on a date in the future
-create or replace function DAY_NAME_ON(num_of_days int)
-returns string
-as
-$$
-select 'In '|| CAST(num_of_days as string)||' days it will be a '|| dayname(dateadd(day,num_of_days,current_date()))
-$$;
+/* CREATE or REPLACE EXTERNAL TABLE my_external_table (
+  column1 int,
+  column2 varchar
+)
+location = @s3_bucket_files
+FILE_FORMAT = (TYPE = 'CSV' FIELD_DELIMITER = ',' PATTERN = 'Color_Names.csv');*/
+create or replace external table my_external_table 
+with location = @s3_bucket_files file_format = mys3csv pattern = '.*.csv';
 
-create or replace function DAY_NAME_ON(num_of_days int)
-returns string
-as
-$$
-select concat_ws(' ','After',CAST(num_of_days as string),'days it will be a',dayname(dateadd(day,num_of_days,current_date())))
-$$;
+select 
+value:c1::varchar as ID, 
+value:c2::varchar as name from my_external_table;
 
-/* select  current_date();
-select dateadd(month,100,current_date()); -- added 100 months with current month.
-select dateadd(day,100,current_date()); -- added 100 days with current month.
-select dayname(dateadd(day,100,current_date())); */
-SELECT DAY_NAME_ON(103);
+select * from my_external_table;
 
--- JavaScript UDF to return the name of the day of the week on a date in the future
-create or replace function JS_DAY_NAME_ON(num_of_days float)
-RETURNS STRING
-LANGUAGE JAVASCRIPT
-AS
-$$
-    const weekday = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
-    
-    const date = new Date();
-    date.setDate(date.getDate() + NUM_OF_DAYS);
-    let day = weekday[date.getDay()];
-    
-    var result = 'In ' + NUM_OF_DAYS + ' days it will be a '+ day; 
-   
-    return result;
-$$;
+-- ---------------------------------------------------------------
 
-select JS_DAY_NAME_ON(100);
+-- https://stackoverflow.com/questions/59197596/snowflake-external-table-from-csv-file-under-s3
 
--- OWN PY FUNCTION
-------------------- SYNTAX START ----------------------------------------
-create or replace function addone(i int)
-returns int
-language python
-runtime_version = '3.8'
-handler = 'addone_py'
-as
-$$
-def addone_py(i):
-  return i+1
-$$;
-------------------- SYNTAX END ----------------------------------------
+select $1,$2,$3,$4 from @s3_bucket_Modelfile;
+select * from EXT_TABLE;
 
-create or replace function PY_PERSON_NAME_FUNCTION(person_name varchar)
-returns string
-language python
-runtime_version = '3.8'
-handler = 'print_name'
-AS
-$$
-def print_name(person_name):
-	name = f"The famous Iron Man Real name is : {person_name}";
-	return name
-$$;
+list @s3_bucket_files;
 
-select PY_PERSON_NAME_FUNCTION('Tony Stark');
+alter external table EXT_TABLE refresh;
+-- ------------------------------------------
+-- FROM SNOWFLAKE LEARNING PLATFORM
+create file format ff_parquet
+TYPE = 'PARQUET';
 
------------------------------------------------- OWN PY FUNCTION ENDS ------------------------------------------------
+create stage trails_parquet
+url = 's3://uni-lab-files-more/dlkw/trails/trails_parquet/';
 
--- Overloading JavaScript UDF (all UDF languages can be overloaded)
-CREATE OR REPLACE FUNCTION JS_DAY_NAME_ON(num_of_days float, is_abbr boolean)
-RETURNS STRING
-LANGUAGE JAVASCRIPT
-  AS
-  $$
-    if (IS_ABBR === 1){
-        var weekday = ["Sun","Mon","Tues","Wed","Thu","Fri","Sat"];
-    } else {
-        var weekday = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
-    }    
-    
-    const date = new Date();
-    date.setDate(date.getDate() + NUM_OF_DAYS);
-    
-    
-    let day = weekday[date.getDay()];
-    
-    var result = 'In ' + NUM_OF_DAYS + ' days it will be a '+ day; 
-   
-    return result;
-  $$;
+list @trails_parquet;
 
+select $1
+from @trails_parquet
+(file_format => ff_parquet);
 
---  OVERLOADING
--- if we pass two arguments it'll execute the function which has two parameters.
--- if we pass one argument it'll execute the function which has one parameter.
+create or replace external table T_CHERRY_CREEK_TRAIL(
+	POINT_ID number as ($1:sequence_1::number),
+	TRAIL_NAME varchar(50) as  ($1:trail_name::varchar),
+	LNG number(11,8) as ($1:latitude::number(11,8)),
+	LAT number(11,8) as ($1:longitude::number(11,8)),
+	COORD_PAIR varchar(50) as (lng::varchar||' '||lat::varchar)
+) 
+location= @trails_parquet
+auto_refresh = true
+file_format = ff_parquet;
 
--- Use the JavaScript UDF as part of a query. 
-SELECT JS_DAY_NAME_ON(100,TRUE);
-SELECT JS_DAY_NAME_ON(100,FALSE);
+select * from T_CHERRY_CREEK_TRAIL;
 
--- With Single Parameter
-SELECT JS_DAY_NAME_ON(100);
+-- -----------------------------------------------------
 
----- START TO WORK 10 FEB----
--- 2. External Function 
-    
-CREATE OR REPLACE API INTEGRATION demonstration_external_api_integration_01
-    API_PROVIDER=aws_api_gateway
-    API_AWS_ROLE_ARN='arn:aws:iam::123456789012:role/my_cloud_account_role'
-    API_ALLOWED_PREFIXES=('https://xyz.execute-api.us-west-2.amazonaws.com/production')
-    ENABLED=true;
+-- UNDERSTOOD -> https://dwgeek.com/working-with-snowflake-external-tables-and-s3-examples.html/
+create or replace file format mys3csv 
+type = 'CSV' 
+field_delimiter = ',' 
+skip_header = 1;
 
-CREATE OR REPLACE EXTERNAL FUNCTION local_echo(string_col varchar)
-    RETURNS variant
-    API_INTEGRATION = demonstration_external_api_integration_01 -- API Integration object
-    AS 'https://xyz.execute-api.us-west-2.amazonaws.com/production/remote_echo'; -- Proxy service URL
+create or replace stage MYS3STAGE url='s3://uni-lab-files/dabw/'
+file_format = mys3csv;
 
--- SELECT my_external_function(34, 56);
+create or replace external table sample_ext 
+with location = @mys3stage file_format = mys3csv;
 
--- 3. Stored procedure JavaScript
+select 
+value:c1::varchar as ID, 
+value:c2::varchar as name from sample_ext;
+-- ----------------------------------------------------------------------
 
-create schema demo_schema2;
--- Create demo tables and insert data to test procedure
-CREATE TABLE DEMO_TABLE 
-(
-NAME STRING, 
-AGE INT
-);
+CREATE or replace EXTERNAL TABLE mytable1 with
+FILE_FORMAT = (TYPE = 'CSV' FIELD_DELIMITER = ',')
+LOCATION = @s3_bucket_Modelfile;
 
-CREATE TABLE DEMO_TABLE_2 
-(
-NAME STRING, 
-AGE INT
-);
-    
-INSERT INTO DEMO_TABLE VALUES ('Edric',56),('Jayanthi',23),('Chloe',51),('Rowland',50),('Lorna',33),('Satish',19);
-INSERT INTO DEMO_TABLE_2 VALUES ('Edric',56),('Jayanthi',23),('Chloe',51),('Rowland',50),('Lorna',33),('Satish',19);
-
-SELECT COUNT(*) FROM DEMO_TABLE;
-SELECT COUNT(*) FROM DEMO_TABLE_2;
-
-
-CREATE OR REPLACE PROCEDURE TRUNCATE_ALL_TABLES_IN_SCHEMA(DATABASE_NAME STRING, SCHEMA_NAME STRING)
-    RETURNS STRING
-    LANGUAGE JAVASCRIPT
-    EXECUTE AS OWNER -- can also be executed as 'caller'(Unique to stored Procedures)
-    AS
-    $$
-    var result = [];
-    var namespace = DATABASE_NAME + '.' + SCHEMA_NAME;
-    var sql_command = 'SHOW TABLES in ' + namespace ; 
-    var result_set = snowflake.execute({sqlText: sql_command});
-    while (result_set.next()){
-        var table_name = result_set.getColumnValue(2);
-        var truncate_result = snowflake.execute({sqlText: 'TRUNCATE TABLE ' + table_name});
-        result.push(namespace + '.' + table_name + ' has been sucessfully truncated.');
-        
-    }
-    return result.join("\n"); 
-    $$;
-
-
--- Calling a stored procedure cannot be used as part of a SQL statement, dissimilar to a UDF. 
-CALL TRUNCATE_ALL_TABLES_IN_SCHEMA('DEMO_DB', 'DEMO_SCHEMA2');
-/*
-TRUNCATE_ALL_TABLES_IN_SCHEMA
-DEMO_DB.DEMO_SCHEMA2.DEMO_TABLE has been sucessfully truncated. DEMO_DB.DEMO_SCHEMA2.DEMO_TABLE_2 has been sucessfully truncated.
-*/
--- show tables in DEMO_DB.DEMO_SCHEMA;
-
-SELECT COUNT(*) FROM DEMO_TABLE;
-SELECT COUNT(*) FROM DEMO_TABLE_2;
+select * from mytable1;
+-- ----------------------------------------------------------------------
