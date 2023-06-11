@@ -114,9 +114,16 @@ FORCE=true;
 
 COPY INTO FILM FROM @FILM_STAGE
 FILE_FORMAT = (TYPE='CSV', SKIP_HEADER=0) -- if SKIP_HEADER=1 WORKS fine, but here the String has been considered as a "DATE" (Date 'release_date' is not recognized)
-ON_ERROR=ABORT_TRANSACTION -- "CONTINUE","ABORT_STATEMENT","ABORT_TRANSACTION"
+ON_ERROR=SKIP_FILE -- "CONTINUE","ABORT_STATEMENT","ABORT_TRANSACTION"
 FILES = ('films.csv')
 FORCE=true;
+
+/*
+COPY INTO FILM FROM @FILM_STAGE
+FILE_FORMAT = (TYPE='CSV', SKIP_HEADER=0) -- if SKIP_HEADER=1 WORKS fine, but here the String has been considered as a "DATE" (Date 'release_date' is not recognized)
+ON_ERROR=ABORT_TRANSACTION -- "CONTINUE","ABORT_STATEMENT","ABORT_TRANSACTION"
+FILES = ('films.csv')
+FORCE=true; -- Wrong option in ON_ERROR*/
 
 -- SELECT * FROM TABLE(VALIDATE(FILMS, job_id=>'<failed_job_id>'));
 SELECT * FROM TABLE(VALIDATE(FILM, job_id=>'01aa853e-3200-a9cc-0003-41ba0006007a')); -- VALIDATE(FILM, job_id=>'01aa853e-3200-a9cc-0003-41ba0006007a') (table_name,job id)
